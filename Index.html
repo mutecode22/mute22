@@ -198,6 +198,45 @@ body{
   font-size:0.85rem;cursor:pointer;
 }
 .retry-btn:hover{border-color:var(--text);color:var(--text);}
+
+/* ── BODY INFO ── */
+#bodyinfo{display:none;width:100%;max-width:420px;text-align:center;padding-top:20px;}
+.bodyinfo-title{font-size:1.2rem;font-weight:900;margin-bottom:6px;}
+.bodyinfo-sub{font-size:0.75rem;color:var(--muted);margin-bottom:24px;line-height:1.6;}
+.gender-wrap{display:flex;gap:12px;justify-content:center;margin-bottom:24px;}
+.gender-btn{
+  flex:1;max-width:160px;padding:16px;border-radius:12px;
+  border:2px solid var(--border);background:var(--card);
+  color:var(--text);font-family:'Noto Sans KR',sans-serif;
+  font-size:1rem;font-weight:700;cursor:pointer;transition:all .15s;
+}
+.gender-btn:hover{border-color:#f59e0b;}
+.gender-btn.selected{border-color:#f59e0b;background:#1a1500;}
+.gender-btn .g-icon{font-size:2rem;display:block;margin-bottom:6px;}
+.input-group{margin-bottom:16px;text-align:left;}
+.input-label{font-size:0.7rem;color:var(--muted);font-weight:700;margin-bottom:6px;display:block;}
+.input-row{display:flex;gap:8px;align-items:center;}
+.num-input{
+  flex:1;background:var(--card);border:1.5px solid var(--border);
+  border-radius:8px;color:var(--text);
+  font-family:'Noto Sans KR',sans-serif;font-size:1rem;font-weight:700;
+  padding:12px 14px;outline:none;transition:border .15s;
+}
+.num-input:focus{border-color:#f59e0b;}
+.input-unit{font-size:0.8rem;color:var(--muted);flex-shrink:0;}
+.bmi-preview{
+  margin-top:12px;padding:10px;border-radius:8px;
+  background:var(--card);border:1px solid var(--border);
+  font-size:0.75rem;color:var(--muted);text-align:center;min-height:36px;
+}
+.confirm-btn{
+  width:100%;margin-top:8px;padding:14px;border-radius:10px;border:none;
+  background:#f4f4f5;color:#09090b;
+  font-family:'Noto Sans KR',sans-serif;font-size:1rem;font-weight:700;
+  cursor:pointer;transition:transform .15s;
+}
+.confirm-btn:hover{transform:translateY(-1px);}
+.confirm-btn:disabled{opacity:0.3;cursor:not-allowed;transform:none;}
 </style>
 </head>
 <body>
@@ -211,7 +250,42 @@ body{
     얼마나 어려운 난이도인지 측정합니다.<br>
     솔직하게 답할수록 정확합니다.
   </p>
-  <button class="start-btn" onclick="startQuiz()">판독 시작하기 →</button>
+  <button class="start-btn" onclick="goBodyInfo()">판독 시작하기 →</button>
+</div>
+
+<!-- BODY INFO -->
+<div id="bodyinfo">
+  <div class="bodyinfo-title">기본 정보 입력</div>
+  <div class="bodyinfo-sub">한국 사회에서 외모·체형은 현실적으로<br>삶에 영향을 줍니다. 솔직하게 입력해주세요.</div>
+
+  <div class="gender-wrap">
+    <button class="gender-btn" id="btn-male" onclick="selectGender('male')">
+      <span class="g-icon">👨</span>남자
+    </button>
+    <button class="gender-btn" id="btn-female" onclick="selectGender('female')">
+      <span class="g-icon">👩</span>여자
+    </button>
+  </div>
+
+  <div class="input-group">
+    <label class="input-label">키</label>
+    <div class="input-row">
+      <input class="num-input" type="number" id="inp-height" placeholder="170" min="140" max="220" oninput="updateBMI()">
+      <span class="input-unit">cm</span>
+    </div>
+  </div>
+
+  <div class="input-group">
+    <label class="input-label">몸무게</label>
+    <div class="input-row">
+      <input class="num-input" type="number" id="inp-weight" placeholder="65" min="30" max="200" oninput="updateBMI()">
+      <span class="input-unit">kg</span>
+    </div>
+  </div>
+
+  <div class="bmi-preview" id="bmi-preview">키와 몸무게를 입력하면 분석됩니다</div>
+
+  <button class="confirm-btn" id="confirm-btn" onclick="startQuiz()" disabled>테스트 시작 →</button>
 </div>
 
 <!-- QUIZ -->
@@ -635,20 +709,61 @@ const TYPES = [
 
 // ── STATE ────────────────────────────────────────────────────────
 let current = 0;
-let scores = []; // per category
+let scores = [];
 let totalScore = 0;
-const catScores = {
-  '👶 출생환경':0,'📚 교육':0,'💰 경제':0,
-  '💼 직업':0,'🏠 주거':0,'❤️ 관계':0,'🧠 멘탈·건강':0
-};
+let selectedGender = null;
+let bodyScore = 0;
+const catScores = {"👶 출생환경":0,"📚 교육":0,"💰 경제":0,"💼 직업":0,"🏠 주거":0,"❤️ 관계":0,"🧠 멘탈·건강":0};
 const catCounts = {...catScores};
 
-// ── FUNCS ────────────────────────────────────────────────────────
+function goBodyInfo(){
+  document.getElementById("intro").style.display="none";
+  document.getElementById("bodyinfo").style.display="block";
+}
+
+function selectGender(g){
+  selectedGender = g;
+  document.getElementById("btn-male").classList.toggle("selected", g==="male");
+  document.getElementById("btn-female").classList.toggle("selected", g==="female");
+  updateBMI();
+}
+
+function updateBMI(){
+  const h = parseFloat(document.getElementById("inp-height").value);
+  const w = parseFloat(document.getElementById("inp-weight").value);
+  const preview = document.getElementById("bmi-preview");
+  const btn = document.getElementById("confirm-btn");
+  if(!selectedGender){preview.textContent="성별을 먼저 선택해주세요";btn.disabled=true;return;}
+  if(!h||!w||h<140||h>220||w<30||w>200){preview.textContent="키와 몸무게를 입력해주세요";btn.disabled=true;return;}
+  const bmi=w/((h/100)**2);
+  let score=0,msg="";
+  if(selectedGender==="male"){
+    if(h>=183){score=0;msg="키 "+h+"cm — 한국 남성 상위권 외모 패널티 없음";}
+    else if(h>=175){score=2;msg="키 "+h+"cm — 평균 이상, 큰 불이익 없음";}
+    else if(h>=170){score=4;msg="키 "+h+"cm — 평균 수준, 약간의 불이익 존재";}
+    else if(h>=165){score=7;msg="키 "+h+"cm — 평균 이하, 체감 불이익 있음";}
+    else{score=10;msg="키 "+h+"cm — 키로 인한 불이익 상당함";}
+  }else{
+    if(bmi<18.5){score=1;msg="BMI "+bmi.toFixed(1)+" — 저체중, 마름 선호 사회에서 유리";}
+    else if(bmi<21){score=0;msg="BMI "+bmi.toFixed(1)+" — 한국 미적 기준 이상적 범위";}
+    else if(bmi<23){score=3;msg="BMI "+bmi.toFixed(1)+" — 정상이지만 한국 기준 약간 불리";}
+    else if(bmi<25){score=6;msg="BMI "+bmi.toFixed(1)+" — 외모 압박 체감 시작";}
+    else if(bmi<28){score=8;msg="BMI "+bmi.toFixed(1)+" — 외모로 인한 불이익 상당함";}
+    else{score=10;msg="BMI "+bmi.toFixed(1)+" — 한국 사회 외모 차별 강하게 체감";}
+  }
+  bodyScore=score;
+  const col=score<=2?"#22c55e":score<=5?"#f59e0b":"#ef4444";
+  preview.innerHTML="<span style="color:"+col+"">"+msg+"</span><br><span style="font-size:.6rem;color:#71717a">총점에 +"+score+"점 반영됩니다</span>";
+  btn.disabled=false;
+}
+
 function startQuiz(){
-  document.getElementById('intro').style.display='none';
-  document.getElementById('quiz').style.display='block';
+  totalScore+=bodyScore;
+  document.getElementById("bodyinfo").style.display="none";
+  document.getElementById("quiz").style.display="block";
   showQuestion(0);
 }
+
 
 function showQuestion(idx){
   const q = QUESTIONS[idx];
@@ -769,11 +884,6 @@ function copyResult(name, score){
   navigator.clipboard.writeText(text).then(()=>{
     alert('결과가 복사됐습니다! 친구에게 공유해보세요 😊');
   });
-}
-</script>
-</body>
-</html>
-
 }
 </script>
 </body>
